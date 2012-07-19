@@ -40,10 +40,10 @@ archive-tags() {
 		then
 			version="${BASH_REMATCH[1]}"
 
-			tarball="$destination/$project/${project}_$version.tar.gz"
+			tarball="$destination/$project/${project}_$version.tar"
 
 			# If the tarball already exists, there is no need to recreate it.
-			if [[ -f "$tarball" ]]
+			if [[ -f "$tarball.gz" ]]
 			then
 				continue
 			fi
@@ -52,7 +52,25 @@ archive-tags() {
 
 			mkdir -p "$destination/$project/"
 
-			git archive --prefix="$project-$version/" $tag | gzip > $tarball
+			git archive --prefix="$project-$version/" $tag > $tarball
+
+			if which git-changelog
+			then
+				changelog="/tmp/git-tarball/$project-$version/CHANGELOG"
+				mkdir -p "${changelog%CHANGELOG}"
+				git changelog > "$changelog"
+
+				# If the file has some size, put it into the tar archive.
+				size="$(stat -c %s "$changelog")"
+				if (( size > 3 ))
+				then
+					tar -cf "/tmp/git-tarball/$project-$version.tar" -C "/tmp/git-tarball/" "$project-$version"
+
+					tar -f "$tarball" -A "/tmp/git-tarball/$project-$version.tar"
+				fi
+			fi
+
+			gzip "$tarball"
 		fi
 	done
 }
